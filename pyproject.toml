@@ -1,0 +1,24 @@
+[build-system]
+requires      = ["setuptools>=44.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nfact_idp"
+version = "1.0.0"
+description = "nfact_idp"
+readme = "README.md"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["nfact_idp"]
+
+dependencies = [
+    'conilab @ git+ssh://git@github.com/Daniel-Halls/conilab.git',
+    'bambi',
+    'seaborn',
+    'python-decouple',
+
+]
+requires-python = ">=3.13"
