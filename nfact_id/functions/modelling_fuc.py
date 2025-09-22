@@ -333,7 +333,7 @@ def get_zscore_summary(z_scores: xr.Dataset) -> pd.DataFrame:
     """
     return az.summary(z_scores, hdi_prob=0.95, kind='stats')[['mean', 'hdi_2.5%', "hdi_97.5%"]].reset_index(drop=True)
 
-def get_meaningful_values(z_posteriors: xr.DataArray, df_comp_vals: pd.DataFrame, log_po: int = -2.94, meaningful: int = 0.1, rope=(-0.1, 0.1)) -> list:
+def get_meaningful_values(z_posteriors: xr.DataArray, df_comp_vals: pd.DataFrame, log_po: int = -2.94, meaningful: int = 0.1, rope=(-0.1, 0.1), down_weight=True) -> list:
     """
     Function to see if individual
     z score posteriors are meaningful
@@ -347,6 +347,11 @@ def get_meaningful_values(z_posteriors: xr.DataArray, df_comp_vals: pd.DataFrame
         log_po cut off 
     meaningful: int = 0.1
         mean cut off
+    down_weight: bool
+        down weight uncertain values by
+        there uncertainity. 
+        This is the default.
+        Else sets uncertain values by zero
     
     Returns
     -------
@@ -363,7 +368,11 @@ def get_meaningful_values(z_posteriors: xr.DataArray, df_comp_vals: pd.DataFrame
             df.loc[idx, 'z_score'] = 0
             continue
         if mass['log_po'] > log_po:
-            df.loc[idx, 'z_score'] = 0
+            if down_weight:
+                weight = 1 - mass['inside']/100
+                df.loc[idx, 'z_score'] = df.loc[idx, 'mean'] * weight
+            else:
+                df.loc[idx, 'z_score'] = 0
             continue
         df.loc[idx, 'z_score'] = df.loc[idx, 'mean']
     return df
@@ -397,7 +406,7 @@ def is_meaningful(z_posteriors: xr.DataArray, log_po: int = -2.94, meaningful: i
         and (mass_dict["log_po"] <= log_po)
     )]
 
-def subject_meaningul_components(means_df: pd.DataFrame, posterior: xr.DataArray, controls_data: pd.DataFrame, no_comp: int) -> pd.DataFrame:
+def subject_meaningul_components(means_df: pd.DataFrame, posterior: xr.DataArray, controls_data: pd.DataFrame, no_comp: int, down_weight=True) -> pd.DataFrame:
     """
     Function to get meaningful subject
     distrubtions given the a set of controls
@@ -414,7 +423,12 @@ def subject_meaningul_components(means_df: pd.DataFrame, posterior: xr.DataArray
         hdi 
     no_comp: int
         number of components
-    
+    down_weight: bool
+        down weight uncertain values by
+        there uncertainity. 
+        This is the default.
+        Else sets uncertain values by zero
+
     Returns
     -------
     component_df: pd.DataFrame
@@ -426,6 +440,7 @@ def subject_meaningul_components(means_df: pd.DataFrame, posterior: xr.DataArray
     for comp in range(no_comp):
         comp_posterior = posterior[:, comp]
         comp_is_meaninfgul = get_meaningful_values(comp_posterior, means_df[["subject", comp]].rename(columns={comp: 'mean'}), 
-                                               rope=(controls_data['hdi_2.5%'][comp], controls_data['hdi_97.5%'][comp]))
+                                               rope=(controls_data['hdi_2.5%'][comp], controls_data['hdi_97.5%'][comp]),
+                                               down_weight=down_weight)
         component_df[comp] = comp_is_meaninfgul['z_score'].values
     return component_df
